@@ -1,0 +1,164 @@
+from pirc522 import RFID
+import signal
+import RPi.GPIO as GPIO
+import time
+GPIO.setwarnings(False)
+
+GPIO.setmode(GPIO.BOARD)
+
+true_password = [1 , 9 , 1 , 2]
+
+password = ["_" , "_" , "_" , "_"]
+MATRIX = [ [1 , 2 , 3 , "A"],
+           [4 , 5 , 6 , "B"],
+           [7 , 8 , 9 , "C"],
+           ["*" , 0 , "K" , "D"]   ]
+
+rdr = RFID()
+util = rdr.util()
+util.debug = True
+
+led = 37
+
+GPIO.setup(led , GPIO.OUT)
+GPIO.output(led , 0 )
+
+COL = [40 , 11 , 13 , 15]
+ROW = [12 , 16 , 32 , 36]
+
+val_C = 0
+x=0
+y=0
+z=0
+t=0
+g=0
+passing = False
+
+for j in range(4):
+    GPIO.setup(COL[j], GPIO.OUT)
+    GPIO.output(COL[j], 1)
+
+for i in range(4):
+    GPIO.setup(ROW[i] , GPIO.IN , pull_up_down = GPIO.PUD_UP)
+try:
+    while True:
+        for j in range(4):
+            GPIO.output(COL[j] , 0 )
+
+            for i in range(4):
+                if GPIO.input(ROW[i]) == 0:
+                    #print MATRIX[i][j]
+                    while GPIO.input(ROW[i]) == 0:
+                        if MATRIX[i][j] == "A":
+                            if password[0] == "_":
+                                pass
+                            elif password[1] == "_":
+                                password[0] = "_"
+                            elif password[2] == "_":
+                                password[1] = "_"
+                            elif password[3] == "_":
+                                password[2] = "_"
+                            else:
+                                password[3] = "_"
+                        elif MATRIX[i][j] == 0 or MATRIX[i][j] == 1 or MATRIX[i][j] == 2 or MATRIX[i][j] == 3 or MATRIX[i][j] == 4 or MATRIX[i][j] == 5 or MATRIX[i][j] == 6 or MATRIX[i][j] == 7 or MATRIX[i][j] == 8 or MATRIX[i][j] == 9:
+                            if password[0] == "_":
+                                password[0] = MATRIX[i][j]
+                            elif password[1] == "_":
+                                password[1] = MATRIX[i][j]
+                            elif password[2] == "_":
+                                password[2] = MATRIX[i][j]
+                            elif password[3] == "_":
+                                password[3] = MATRIX[i][j]
+                        print "Password:" , password[0] , password[1] , password[2] , password[3]
+                        if MATRIX[i][j] == "D":
+                            if t == 0:
+                                if true_password == password:
+                                    passing = True
+                                    print "TRUE PASSWORD"
+                                    password = ["_" , "_" , "_" , "_"]
+                                    nedim = 0
+                                    print "Please Scan the Card"
+                                    while True:
+                                        rdr.wait_for_tag()
+                                        (error, data) = rdr.request()
+                                        if not error:
+                                            (error, uid) = rdr.anticoll()
+                                            if not error:
+                                                kart_uid = str(uid[0])+" "+str(uid[1])+" "+str(uid[2])+" "+str(uid[3])+" "+str(uid[4])
+                                                print "Card UID: " , kart_uid
+                                                if kart_uid == "61 128 233 79 27":
+                                                    GPIO.output(led , GPIO.HIGH)
+                                                    print "THE DOOR IS OPENING, WELCOME"
+                                                    time.sleep(5)
+                                                    GPIO.output(led , GPIO.LOW)
+                                                    nedim = 1
+                                                elif kart_uid != "61 128 233 79 27":
+                                                    print "ENTERING DENIED"
+                                                    GPIO.output(led , GPIO.LOW)
+                                        else:
+                                            GPIO.output(led , GPIO.LOW)
+                                        if nedim == 1:
+                                            break
+                                elif true_password != password and password[0] != "_" and password[1] != "_" and password[2] != "_" and password[3] != "_":
+                                    passing = False
+                                    print "WRONG PASSWORD"
+                                    password = ["_" , "_" , "_" , "_"]
+                                elif password[0] == "_" or password[1] == "_" or password[2] == "_" or password[3] == "_":
+                                    print "PLEASE FILL THE PASSWORD"
+                        if MATRIX[i][j] == "C" or y == 1 :
+                            val_C += 1
+                            if val_C >= 3:
+                                if z == 0:
+                                    print "PASSWORD CHANGER WIZARD STARTING"
+                                    password = ["_" , "_" , "_" , "_"]
+                                    print "Enter Old Password"
+                                x=1
+                                y=1
+                                z=1
+                                if password == true_password or t == 1:
+                                    print"Enter New Password"
+                                    if t==0:
+                                        password = ["_" , "_" , "_" , "_"]
+                                    t=1
+                                    if password[0] != "_" and password[1] != "_" and password[2] != "_" and password[3] != "_" and t == 1 or g == 1:
+                                        if g == 0:
+                                            new_password_1 = password
+                                            print new_password_1
+                                            print"Enter New Password Again"
+                                            time.sleep(0.2)
+                                            password = ["_" , "_" , "_" , "_"]
+                                        g = 1
+                                        if password[0] != "_" and password[1] != "_" and password[2] != "_" and password[3] != "_":
+                                            new_password_2 = password
+                                            if new_password_1 == new_password_2:
+                                                true_password = new_password_2
+                                                print "PASSWORD CHANGED. CONGS"
+                                                print "NEW PASSWORD: " , true_password
+                                                x=0
+                                                y=0
+                                                z=0
+                                                t=0
+                                                g=0
+                                                password = ["_" , "_" , "_" , "_"]
+                                            else:
+                                                print"PASSWORD DENIED"
+                                                print"---------------"
+                                                print"Enter Old Password Again"
+                                                password = ["_" , "_" , "_" , "_"]
+                                                new_password_1 = ["_" , "_" , "_" , "_"]
+                                                new_password_2 = ["_" , "_" , "_" , "_"]
+                                                t=0
+                                                g=0
+                                                pass
+                        else:
+                            if x == 0:
+                                val_C = 0
+
+                        time.sleep(0.5)    
+            GPIO.output(COL[j] , 1 )
+
+
+
+except KeyboardInterrupt:
+    GPIO.cleanup()
+   
